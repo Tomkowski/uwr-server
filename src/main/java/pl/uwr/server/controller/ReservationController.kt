@@ -20,6 +20,7 @@ class ReservationController(
 
     @RequestMapping("all")
     fun fetchAll(@RequestBody credentials: Credentials): List<ReservationDTO> {
+        println("${credentials.username} asked for all reservations")
         return if (validateUser(credentials)) reservationService.fetchAll() else emptyList()
     }
 

@@ -11,10 +11,10 @@ public class ReservationDTO {
     private Long classId;
     private Long studentId;
     private String title;
-    private Calendar beginDate;
-    private Calendar endDate;
+    private Long beginDate;
+    private Long endDate;
 
-    public ReservationDTO(Long classId, Long studentId, String title, Calendar beginDate, Calendar endDate) {
+    public ReservationDTO(Long classId, Long studentId, String title, Long beginDate, Long endDate) {
         this.classId = classId;
         this.studentId = studentId;
         this.title = title;

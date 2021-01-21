@@ -30,7 +30,7 @@ class ReservationServiceImpl(private val reservationRepository: ReservationRepos
 
     override fun fetchAll(): MutableList<ReservationDTO> {
         return reservationRepository.findAll().map {
-            ReservationDTO(it.classId, it.student.id, it.title, it.beginDate, it.endDate)
+            ReservationDTO(it.classId, it.student.id, it.title, it.beginDate.timeInMillis, it.endDate.timeInMillis)
         } as MutableList
     }
 
