@@ -6,7 +6,7 @@ import pl.uwr.server.model.ReservationDTO
 import pl.uwr.server.repository.ReservationRepository
 
 @Service
-class ReservationServiceImpl(private val reservationRepository: ReservationRepository) : ReservationApiService{
+class ReservationServiceImpl(private val reservationRepository: ReservationRepository) : ReservationApiService {
     override fun deleteReservation(id: Long): Boolean {
         reservationRepository.deleteById(id)
         return true
@@ -17,11 +17,10 @@ class ReservationServiceImpl(private val reservationRepository: ReservationRepos
                 reservation.classId,
                 reservation.beginDate,
                 reservation.endDate)
-        return if(reservationsThatOverlap.isEmpty()) {
+        return if (reservationsThatOverlap.isEmpty()) {
             reservationRepository.save(reservation)
             true
-        }
-        else false
+        } else false
     }
 
     override fun findById(id: Long): Reservation? {
@@ -29,9 +28,22 @@ class ReservationServiceImpl(private val reservationRepository: ReservationRepos
     }
 
     override fun fetchAll(): MutableList<ReservationDTO> {
-        return reservationRepository.findAll().map {
-            ReservationDTO(it.classId, it.student.id, it.title, it.beginDate.timeInMillis, it.endDate.timeInMillis)
+        return reservationRepository.findAllActive().map {
+            ReservationDTO(it.id, it.classId, it.student.id, it.title, it.beginDate.timeInMillis, it.endDate.timeInMillis)
         } as MutableList
+    }
+
+    fun cancelReservation(id: Long): Boolean {
+        val reservation = reservationRepository.findById(id)
+
+        if (reservation.isPresent) {
+            reservation.get().let {
+                it.isActive = false
+                reservationRepository.save(it)
+                return true
+            }
+        }
+        return false
     }
 
 }

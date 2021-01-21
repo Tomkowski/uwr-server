@@ -20,6 +20,8 @@ public class Reservation {
     @ManyToOne
     @JsonIgnore
     private Student student;
+    @Column(name = "active")
+    private boolean isActive;
 
     public Reservation(Long classId, String title, Calendar beginDate, Calendar endDate, Student student) {
         this.classId = classId;
@@ -27,6 +29,7 @@ public class Reservation {
         this.beginDate = beginDate;
         this.endDate = endDate;
         this.student = student;
+        isActive = true;
     }
 
     public Long getId() {
@@ -75,5 +78,13 @@ public class Reservation {
 
     public void setStudent(Student student) {
         this.student = student;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void setActive(boolean active) {
+        isActive = active;
     }
 }

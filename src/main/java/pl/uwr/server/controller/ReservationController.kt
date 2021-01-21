@@ -3,10 +3,7 @@ package pl.uwr.server.controller
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import pl.uwr.server.model.Credentials
-import pl.uwr.server.model.Reservation
-import pl.uwr.server.model.ReservationDTO
-import pl.uwr.server.model.ReservationRequest
+import pl.uwr.server.model.*
 import pl.uwr.server.repository.StudentRepository
 import pl.uwr.server.service.ReservationServiceImpl
 import java.util.*
@@ -48,6 +45,11 @@ class ReservationController(
             } else "400"
         }
 
+    }
+    @RequestMapping("cancel")
+    fun cancelReservation(@RequestBody cancellationRequest: CancellationRequest): String{
+        if(!validateUser(cancellationRequest.requester)) return "414"
+        return if(reservationService.cancelReservation(cancellationRequest.classId)) "200" else "400"
     }
 
     private fun validateUser(credentials: Credentials): Boolean {
