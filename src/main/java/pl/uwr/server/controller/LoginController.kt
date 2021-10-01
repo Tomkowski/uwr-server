@@ -1,8 +1,13 @@
 package pl.uwr.server.controller
 
 import lombok.NoArgsConstructor
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RestController
 import pl.droidsonroids.jspoon.Jspoon
 import pl.uwr.server.external.*
 import pl.uwr.server.model.Credentials
@@ -18,9 +23,22 @@ import kotlin.concurrent.thread
 @RestController
 @RequestMapping("/authorize")
 @NoArgsConstructor
-class LoginController(val studentRepository: StudentRepository, val tokenRepository: TokenRepository) {
+/**
+ * Kontroler odpowiadający na żądania użytkowników dotyczące logowania i wylogowywania
+ * @param studentRepository repozytorium studentów
+ * @param tokenRepository repozytorium z tymczasowymi tokenami
+ */
+class LoginController(private val studentRepository: StudentRepository, private val tokenRepository: TokenRepository) {
+    /**
+     * pliki cookies wykorzystywane przez stronę logowania CAS
+     */
     var cookies = ""
+    var logger: Logger = LoggerFactory.getLogger(ReservationController::class.java)
 
+    /**
+     * metoda logująca użytkownika przy pomocy loginu i hasła
+     * @param credentials obiekt JSON z loginem i hasłem użytkownika
+     */
     @PostMapping
     fun performLogin(@RequestBody credentials: Credentials): LoginResponse {
         val service = RestApiService()
@@ -49,13 +67,12 @@ class LoginController(val studentRepository: StudentRepository, val tokenReposit
             )
 
             service.sendCredentials(cookies, loginPostObject) { response ->
-                //println(response?.body().toString())
                 if (response == null) {
                     loginResponse.statusCode = 414
                     return@sendCredentials
                 }
                 val loginSuccessfulPage =
-                        Jspoon.create().adapter(SuccessfulAuthorizationPage::class.java).fromHtml(
+                        Jspoon.create().adapter(AuthorizationPage::class.java).fromHtml(
                                 response.body()
                         )
                 if (loginSuccessfulPage.loginMessage == "Zalogowałeś się w CAS - Centralnej Usłudze Uwierzytelniania.") {
@@ -87,6 +104,10 @@ class LoginController(val studentRepository: StudentRepository, val tokenReposit
         return loginResponse
     }
 
+    /**
+     * metoda logująca użytkownika przy pomocy loginu i tokenu
+     * @param credentials obiekt JSON z loginem i tokenem użytkownika
+     */
     @PostMapping("/token")
     fun performLoginWithToken(@RequestBody credentials: Credentials): LoginResponse {
         val requestUsername = credentials.username
@@ -97,12 +118,16 @@ class LoginController(val studentRepository: StudentRepository, val tokenReposit
         student.ifPresent {
             if (it.token.content == requestToken) {
                 response = LoginResponse(200, "${it.id}", it.token.content)
-                println("$requestUsername has logged in using token: $requestToken")
+                logger.info("$requestUsername has logged in using token: $requestToken")
             }
         }
         return response
     }
 
+    /**
+     * metoda wylogowująca użytkownika przy pomocy loginu i tokenu
+     * @param credentials obiekt JSON z loginem i tokenem użytkownika
+     */
     @PostMapping("/logout")
     fun performLogout(@RequestBody credentials: Credentials): String {
         val requestUsername = credentials.username
@@ -112,7 +137,12 @@ class LoginController(val studentRepository: StudentRepository, val tokenReposit
         var response = "400"
         student.ifPresent {
             if (it.token.content == requestToken) {
-                response = "200"
+                if(requestUsername in listOf("-1")) {
+                    //ADMIN CASE
+                    response = "200"
+                    return@ifPresent
+                }
+                      response = "200"
                 it.token.content = "INVALID"
                 it.token.validity = Calendar.getInstance()
 
@@ -123,10 +153,38 @@ class LoginController(val studentRepository: StudentRepository, val tokenReposit
         return response
     }
 
+    /**
+     * logowanie do aplikacji jako administrator
+     * @param credentials login i hasło administratora
+     */
+    @PostMapping("/admin")
+    fun performAdminLogin(@RequestBody credentials: Credentials): LoginResponse {
+        val requestUsername = credentials.username
+        val requestToken = credentials.password
+        println("received $credentials")
+        val student = studentRepository.findById(requestUsername.toLong())
+        var response = 400
+        student.ifPresent {
+            if(it.id in listOf(-1L))
+                if (it.token.content == requestToken) {
+                response = 200
+            }
+        }
+        return LoginResponse(response, requestUsername, requestToken)
+    }
 
+    /**
+     * generator liczb pseudolosowych
+     */
     private val secureRandom: SecureRandom = SecureRandom()
+    /**
+     * konwerter bajtów do łańcuchów znakowych
+     */
     private val base64Encoder = Base64.getUrlEncoder()
 
+    /**
+     * metoda zwracająca 24-bajtowe tokeny złożone z losowych bajtów
+     */
     private fun generateNewToken(): String? {
         val randomBytes = ByteArray(24)
         secureRandom.nextBytes(randomBytes)
